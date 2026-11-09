@@ -87,6 +87,10 @@ static std::string RandomToken(int bytes) {
     BCryptGenRandom(nullptr, b.data(), (ULONG)bytes, BCRYPT_USE_SYSTEM_PREFERRED_RNG);
     return Base64Url(b);
 }
+static void LogMsg(const std::string& m){
+    std::ofstream f(GetExeDir()+L"\\vr.log", std::ios::app);
+    f<<"["<<time(nullptr)<<"] "<<m<<"\n";
+}
 static bool HttpPost(const wchar_t* host, const wchar_t* path, const std::string& body, const std::string& contentType, const std::string& authHeader, std::string& resp) {
     HINTERNET hSess = WinHttpOpen(L"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if(!hSess) return false;
@@ -95,14 +99,14 @@ static bool HttpPost(const wchar_t* host, const wchar_t* path, const std::string
     std::wstring hdr = L"Content-Type: ";
     std::wstring ct(contentType.begin(), contentType.end());
     hdr += ct;
-    hdr += L"\r\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
     hdr += L"\r\nAccept: application/json";
     if(!authHeader.empty()){
         std::wstring ah = L"\r\nAuthorization: Bearer ";
         ah += std::wstring(authHeader.begin(), authHeader.end());
         hdr += ah;
     }
-    WinHttpSendRequest(hReq, hdr.c_str(), -1, (LPVOID)body.data(), (DWORD)body.size(), (DWORD)body.size(), 0);
+    BOOL sent = WinHttpSendRequest(hReq, hdr.c_str(), -1, (LPVOID)body.data(), (DWORD)body.size(), (DWORD)body.size(), 0);
+    if(!sent){ LogMsg("WinHttpSendRequest failed err="+std::to_string(GetLastError())); }
     WinHttpReceiveResponse(hReq, nullptr);
     DWORD status=0, sz=sizeof(status);
     WinHttpQueryHeaders(hReq, WINHTTP_QUERY_STATUS_CODE|WINHTTP_QUERY_FLAG_NUMBER, nullptr, &status, &sz, nullptr);
@@ -116,6 +120,7 @@ static bool HttpPost(const wchar_t* host, const wchar_t* path, const std::string
         WinHttpReadData(hReq, buf.data(), avail, &got);
         resp.append(buf.data(), got);
     } while(avail>0);
+    LogMsg("POST status="+std::to_string(status)+" resp="+resp.substr(0,400));
     WinHttpCloseHandle(hReq); WinHttpCloseHandle(hConn); WinHttpCloseHandle(hSess);
     return status>=200 && status<300;
 }
