@@ -64,9 +64,9 @@ static std::vector<unsigned char> Sha256(const std::string& s) {
     std::vector<unsigned char> out(32);
     BCRYPT_ALG_HANDLE hAlg=nullptr; BCRYPT_HASH_HANDLE hHash=nullptr;
     BCryptOpenAlgorithmProvider(&hAlg, BCRYPT_SHA256_ALGORITHM, nullptr, 0);
-    BCryptCreateHash(hAlg, &hHash, nullptr, 0, nullptr, 0, nullptr, 0);
+    BCryptCreateHash(hAlg, &hHash, nullptr, 0, nullptr, 0, 0);
     BCryptHashData(hHash, (PUCHAR)s.data(), (ULONG)s.size(), 0);
-    ULONG len=0; BCryptFinishHash(hHash, out.data(), 32, &len);
+    BCryptFinishHash(hHash, out.data(), 32, 32);
     BCryptDestroyHash(hHash); BCryptCloseAlgorithmProvider(hAlg,0);
     return out;
 }
