@@ -13,7 +13,7 @@ jobs:
         with:
           arch: x64
       - name: Compile
-        run: cl /std:c++17 /EHsc /O2 main.cpp /link winhttp.lib bcrypt.lib /SUBSYSTEM:WINDOWS /OUT:DiscordVRStatus.exe
+        run: cl /std:c++17 /EHsc /O2 main.cpp /link winhttp.lib bcrypt.lib advapi32.lib /SUBSYSTEM:WINDOWS /OUT:DiscordVRStatus.exe
       - name: Upload exe
         uses: actions/upload-artifact@v4
         with:
