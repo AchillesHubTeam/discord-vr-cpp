@@ -8,6 +8,8 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <vector>
+#include <cstdio>
 #include <ctime>
 
 #pragma comment(lib, "winhttp.lib")
@@ -15,7 +17,7 @@
 
 static const char* META_APP_ID = "1417273808645259344";
 static const char* REDIRECT_URL = "https://oculus.com/oauth_account_linking/login_redirect";
-static const char* TOKEN_HOST = L"discord.com";
+static const wchar_t* TOKEN_HOST = L"discord.com";
 static const wchar_t* TOKEN_PATH = L"/api/v10/oauth2/token";
 static const wchar_t* HEADLESS_PATH = L"/api/v10/users/@me/headless-sessions";
 static const wchar_t* HEADLESS_DELETE_PATH = L"/api/v10/users/@me/headless-sessions/delete";
@@ -70,14 +72,14 @@ static std::vector<unsigned char> Sha256(const std::string& s) {
 }
 static std::string RandomToken(int bytes) {
     std::vector<unsigned char> b(bytes);
-    BCryptGenRandom(nullptr, b.data(), bytes, BCRYPT_USE_SYSTEM_PREFERRED_RNG);
+    BCryptGenRandom(nullptr, b.data(), (ULONG)bytes, BCRYPT_USE_SYSTEM_PREFERRED_RNG);
     return Base64Url(b);
 }
 static bool HttpPost(const wchar_t* host, const wchar_t* path, const std::string& body, const std::string& contentType, const std::string& authHeader, std::string& resp) {
     HINTERNET hSess = WinHttpOpen(L"DiscordVR/1.0", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if(!hSess) return false;
     HINTERNET hConn = WinHttpConnect(hSess, host, INTERNET_DEFAULT_HTTPS_PORT, 0);
-    HINTERNET hReq = WinHttpOpenRequest(hConn, L"POST", path, nullptr, WINHTTP_WIN32_PROXY, WINHTTP_FLAG_SECURE);
+    HINTERNET hReq = WinHttpOpenRequest(hConn, L"POST", path, nullptr, nullptr, nullptr, WINHTTP_FLAG_SECURE);
     std::wstring hdr = L"Content-Type: ";
     std::wstring ct(contentType.begin(), contentType.end());
     hdr += ct;
