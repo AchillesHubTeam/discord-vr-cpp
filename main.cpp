@@ -2,6 +2,7 @@
 // OAuth2 PKCE + headless session loop, no external deps, WinHTTP + BCrypt only.
 // Compile: cl /std:c++17 /EHsc /O2 main.cpp /link winhttp.lib bcrypt.lib /SUBSYSTEM:WINDOWS
 #include <windows.h>
+#include <tlhelp32.h>
 #include <winhttp.h>
 #include <bcrypt.h>
 #include <iostream>
@@ -234,6 +235,7 @@ static bool UpdateStatus(){
     std::string resp;
     if(!HttpPost(TOKEN_HOST, HEADLESS_PATH, body, "application/json", g_auth.access, resp)) return false;
     g_sessionToken=JsonGet(resp,"token");
+    SaveSessionToken(g_sessionToken);
     return true;
 }
 static void DeleteStatus(){
@@ -242,14 +244,74 @@ static void DeleteStatus(){
     std::string body="{\"token\":\""+g_sessionToken+"\"}";
     HttpPost(TOKEN_HOST, HEADLESS_DELETE_PATH, body, "application/json", g_auth.access, resp);
 }
+static void KillOtherInstances(){
+    DWORD self = GetCurrentProcessId();
+    HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if(snap == INVALID_HANDLE_VALUE) return;
+    PROCESSENTRY32W pe; pe.dwSize = sizeof(pe);
+    if(Process32FirstW(snap, &pe)){
+        do{
+            if(pe.th32ProcessID != self && wcscmp(pe.szExeFile, L"DiscordVRStatus.exe")==0){
+                HANDLE h = OpenProcess(PROCESS_TERMINATE, FALSE, pe.th32ProcessID);
+                if(h){ TerminateProcess(h, 0); CloseHandle(h); }
+            }
+        }while(Process32NextW(snap, &pe));
+    }
+    CloseHandle(snap);
+}
+static std::wstring SessionsPath(){ return GetExeDir() + L"\\sessions.json"; }
+static void DeleteTokenStr(const std::string& tok){
+    if(tok.empty()) return;
+    std::string resp;
+    std::string body="{\"token\":\""+tok+"\"}";
+    HttpPost(TOKEN_HOST, HEADLESS_DELETE_PATH, body, "application/json", g_auth.access, resp);
+}
+static void DeleteOldSessions(){
+    std::ifstream f(SessionsPath());
+    if(!f) return;
+    std::stringstream ss; ss<<f.rdbuf(); std::string j=ss.str(); f.close();
+    // parse quoted tokens from ["t1","t2"]
+    size_t p=0;
+    while(true){
+        size_t a=j.find('"', p); if(a==std::string::npos) break;
+        size_t b=j.find('"', a+1); if(b==std::string::npos) break;
+        std::string tok=j.substr(a+1, b-a-1);
+        // tokens are long (>20 chars), skip short keys
+        if(tok.size()>20) DeleteTokenStr(tok);
+        p=b+1;
+    }
+    // clear file for new session
+    std::ofstream out(SessionsPath(), std::ios::trunc); out<<"[]"; out.close();
+}
+static void SaveSessionToken(const std::string& tok){
+    if(tok.empty()) return;
+    std::ifstream f(SessionsPath());
+    std::string existing="[]";
+    if(f){ std::stringstream ss; ss<<f.rdbuf(); existing=ss.str(); f.close(); }
+    if(existing.find(tok)!=std::string::npos) return;
+    std::string arr = (existing=="[]" || existing.empty()) ? "[]" : existing;
+    // insert before closing ]
+    size_t pos = arr.rfind(']');
+    if(pos==std::string::npos) return;
+    std::string ne = arr.substr(0,pos);
+    if(ne.find('"')!=std::string::npos) ne += ",";
+    ne += "\""+tok+"\"]";
+    std::ofstream out(SessionsPath(), std::ios::trunc); out<<ne; out.close();
+}
 
 int APIENTRY WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
-    // Single-instance guard: prevent multiple headless sessions (multiple games)
+    // Auto-kill other instances + old sessions (keep Startup registration below)
+    KillOtherInstances();
+    // Single-instance guard
     HANDLE hSingle = CreateMutexW(nullptr, FALSE, L"DiscordVRStatusSingleInstance");
     if(GetLastError() == ERROR_ALREADY_EXISTS){
         return 0;
     }
     bool hasAuth=LoadAuth(g_auth);
+    if(hasAuth){
+        // clean orphan headless sessions from previous runs/kills
+        DeleteOldSessions();
+    }
     if(!hasAuth){
         AllocConsole();
         freopen("CONIN$", "r", stdin);
