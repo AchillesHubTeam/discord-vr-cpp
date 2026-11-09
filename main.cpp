@@ -242,11 +242,12 @@ int APIENTRY WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
         }
         std::cout<<"Done. VR status active.\n";
         RegisterStartup();
-        // keep console open while running first time; user can Ctrl+C
-        // loop below runs in this console
+        Sleep(1500);
+        // Auto-hide console after first login, keep running in background
+        FreeConsole();
     } else {
         RegisterStartup();
-        // silent background mode
+        // silent background mode (no console ever opened)
     }
     while(true){
         if(g_auth.expires_unix < (long long)time(nullptr)+300){
