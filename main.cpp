@@ -226,6 +226,7 @@ static std::string RandomGame(){
     int idx = r % (sizeof(games)/sizeof(games[0]));
     return games[idx];
 }
+static void SaveSessionToken(const std::string& tok);
 static bool UpdateStatus(){
     std::string game=RandomGame();
     std::string body="{\"activities\":[{\"name\":\""+game+"\",\"application_id\":\""+std::string(META_APP_ID)+"\",\"type\":6,\"platform\":\"meta_quest\"}]}";
