@@ -244,6 +244,11 @@ static void DeleteStatus(){
 }
 
 int APIENTRY WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
+    // Single-instance guard: prevent multiple headless sessions (multiple games)
+    HANDLE hSingle = CreateMutexW(nullptr, FALSE, L"DiscordVRStatusSingleInstance");
+    if(GetLastError() == ERROR_ALREADY_EXISTS){
+        return 0;
+    }
     bool hasAuth=LoadAuth(g_auth);
     if(!hasAuth){
         AllocConsole();
