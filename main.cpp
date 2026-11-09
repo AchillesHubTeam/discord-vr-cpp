@@ -218,10 +218,18 @@ static bool InteractiveLogin(Auth& out){
 // ---------- headless ----------
 static std::string g_sessionToken;
 static Auth g_auth;
+static std::string RandomGame(){
+    static const char* games[]={"VRChat","Half-Life: Alyx","Beat Saber","BONEWORKS","SUPERHOT VR","The Lab","Resident Evil 7 VR","Fallout 4 VR","The Elder Scrolls V: Skyrim VR","Arizona Sunshine","Job Simulator","Rec Room","Bigscreen VR","Population: ONE","Onward","Phasmophobia VR","Pavlov VR","Sword Art Online: Alicization Lycoris","Stormland","Asgard's Wrath"};
+    unsigned int r=0;
+    BCryptGenRandom(nullptr, (PUCHAR)&r, sizeof(r), BCRYPT_USE_SYSTEM_PREFERRED_RNG);
+    int idx = r % (sizeof(games)/sizeof(games[0]));
+    return games[idx];
+}
 static bool UpdateStatus(){
-    std::string body="{\"activities\":[{\"name\":\"~~\",\"application_id\":\""+std::string(META_APP_ID)+"\",\"type\":6,\"platform\":\"meta_quest\"}]}";
+    std::string game=RandomGame();
+    std::string body="{\"activities\":[{\"name\":\""+game+"\",\"application_id\":\""+std::string(META_APP_ID)+"\",\"type\":6,\"platform\":\"meta_quest\"}]}";
     if(!g_sessionToken.empty()){
-        body="{\"activities\":[{\"name\":\"~~\",\"application_id\":\""+std::string(META_APP_ID)+"\",\"type\":6,\"platform\":\"meta_quest\"}],\"token\":\""+g_sessionToken+"\"}";
+        body="{\"activities\":[{\"name\":\""+game+"\",\"application_id\":\""+std::string(META_APP_ID)+"\",\"type\":6,\"platform\":\"meta_quest\"}],\"token\":\""+g_sessionToken+"\"}";
     }
     std::string resp;
     if(!HttpPost(TOKEN_HOST, HEADLESS_PATH, body, "application/json", g_auth.access, resp)) return false;
